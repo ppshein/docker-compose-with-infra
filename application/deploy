@@ -1,0 +1,77 @@
+#!/bin/sh
+<<DOC
+  .SYNOPSIS
+    Apply docker-compose
+  .POSITION_PARAMETER ENV
+    Environment name
+  .EXAMPLE
+    ./deploy.sh infraApply prod
+DOC
+
+# e: immediately exit if error
+# u: exit if refer to non existing variable
+# o: return error code of any sub command in pipeline
+set -euo pipefail
+
+TASK=$1
+ARGS=${@:2}
+
+help__infraApply="Deploy services with docker-compose"
+task_infraApply() {
+  local environment=$1
+
+  if [[ -z "${environment}" ]]; then
+    echo "Environment variable is missing"
+    exit 1
+  fi
+
+  echo "Apply all docker services"
+
+  # delete environment file if exists
+  [ -e current.env ] && rm -rf current.env
+
+  # copy environment file based on environment
+  cp "./env/${environment}.env" current.env
+
+  docker-compose up -d
+}
+
+help__infraDestroy="Destroy services with docker-compose"
+task_infraDestroy() {
+  local environment=$1
+
+  if [[ -z "${environment}" ]]; then
+    echo "Environment variable is missing"
+    exit 1
+  fi
+
+  echo "Destroy all docker services" 
+
+  docker-compose down -v
+
+  # delete environment file if exists
+  [ -e current.env ] && rm -rf current.env
+}
+
+list_all_helps() {
+  compgen -v | grep -E "^help__.*"
+}
+
+# construct deployment file and its comment here
+NEW_LINE=$'\n'
+echo task_$TASK
+if type -t "task_$TASK" &>/dev/null; then
+  task_$TASK $ARGS
+else
+  echo "usage: $0 <task> [<..args>]"
+  echo "task:"
+
+  HELPS=""
+  for help in $(list_all_helps); do
+
+    HELPS="$HELPS    ${help/help__/} |-- ${!help}$NEW_LINE"
+  done
+
+  echo "$HELPS" | column -t -s "|"
+  exit 1
+fi

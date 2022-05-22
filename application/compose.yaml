@@ -1,0 +1,51 @@
+version: '3.8'
+services:
+  php:
+    container_name: php
+    env_file:
+      - current.env
+    build:
+      context: ./php
+      dockerfile: Dockerfile
+    volumes:
+      - ./php/src:/var/www/html/
+    ports:
+      - 80:80
+    links:
+      - mysql
+      - mongodb
+    depends_on:
+      - mysql
+  mysql:
+    image: mysql:8.0.27
+    container_name: mysql
+    env_file:
+      - current.env
+    command: --init-file /data/application/init.sql
+    ports:
+      - 3306:3306
+    volumes:
+      - ./mysql-database/mysql:/var/lib/mysql
+      - ./mysql-database/init.sql:/data/application/init.sql
+  mongodb:
+    image: mongo:5.0
+    container_name: mongodb
+    env_file:
+      - current.env
+    restart: unless-stopped
+    ports:
+      - 27017:27017
+    volumes:
+      - ./mongodb/data/db:/data/db
+      - ./mongodb/data/dev.archive:/Databases/dev.archive
+      - ./mongodb/data/production:/Databases/production
+  mongo-seed:
+    container_name: mongoseed
+    image: mongo:5.0
+    volumes:
+      - ./mongo-seed:/mongo-seed
+    depends_on:
+      - mongodb
+    links:
+      - mongodb
+    command: /mongo-seed/seed.sh
